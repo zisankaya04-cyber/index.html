@@ -1,0 +1,534 @@
+```html
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>DRM Bellek Deneyi</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+
+    /* ARKA PLAN GÖRSELİ */
+    background-image: url("arkaplan.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    background: rgba(255,255,255,0.93);
+    width: 90%;
+    max-width: 650px;
+    padding: 35px;
+    border-radius: 18px;
+    text-align: center;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+}
+
+.hidden {
+    display: none !important;
+}
+
+h1 {
+    font-size: 26px;
+}
+
+#word {
+    font-size: 40px;
+    font-weight: bold;
+    margin: 65px 0;
+}
+
+button {
+    padding: 15px 28px;
+    border: none;
+    border-radius: 9px;
+    color: white;
+    font-size: 17px;
+    cursor: pointer;
+    margin: 10px;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.start {
+    background: #405b80;
+}
+
+.yes {
+    background: #327a59;
+}
+
+.no {
+    background: #a34d4d;
+}
+
+#choices {
+    margin-top: 35px;
+}
+
+#progress {
+    color: #555;
+    font-size: 14px;
+}
+
+p {
+    line-height: 1.7;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- BAŞLANGIÇ -->
+
+    <div id="startScreen">
+
+        <h1>Bellek Deneyi</h1>
+
+        <p>
+            Birazdan ekranda kelimeler göreceksiniz.
+            Kelimeleri dikkatlice inceleyiniz ve aklınızda
+            tutmaya çalışınız.
+        </p>
+
+        <p>
+            Her kelime 5 saniye boyunca gösterilecektir.
+            Her listenin ardından bir tanıma testi yapılacaktır.
+        </p>
+
+        <p>
+            Tanıma testinde karşınıza çıkan kelimelerden
+            daha önce gördüklerinizi belirtmeniz istenecektir.
+        </p>
+
+        <button class="start" onclick="startExperiment()">
+            Deneye Başla
+        </button>
+
+    </div>
+
+
+    <!-- KELİME SUNUMU -->
+
+    <div id="presentationScreen" class="hidden">
+
+        <h2 id="listNumber"></h2>
+
+        <div id="word"></div>
+
+        <p id="presentationProgress"></p>
+
+    </div>
+
+
+    <!-- BEKLEME -->
+
+    <div id="waitingScreen" class="hidden">
+
+        <h2>Lütfen bekleyiniz...</h2>
+
+    </div>
+
+
+    <!-- TANIMA TESTİ -->
+
+    <div id="testScreen" class="hidden">
+
+        <h2>Tanıma Testi</h2>
+
+        <p>
+            Bu kelimeyi az önceki listede gördünüz mü?
+        </p>
+
+        <div id="word"></div>
+
+        <div id="choices">
+
+            <button class="yes" onclick="answer(true)">
+                Gördüm
+            </button>
+
+            <button class="no" onclick="answer(false)">
+                Görmedim
+            </button>
+
+        </div>
+
+        <p id="progress"></p>
+
+    </div>
+
+
+    <!-- BİTİŞ -->
+
+    <div id="endScreen" class="hidden">
+
+        <h2>Deney Tamamlandı</h2>
+
+        <p>Katılımınız için teşekkür ederiz.</p>
+
+        <button class="start" onclick="downloadResults()">
+            Sonuçları İndir
+        </button>
+
+    </div>
+
+</div>
+
+
+<script>
+
+/* KELİME LİSTELERİ */
+
+const lists = [
+
+    ["Gezegen", "Ay", "Yıldız", "Güneş", "Dünya"],
+
+    ["Müzik", "Nota", "Şarkı", "Melodi", "Ritim"],
+
+    ["Doktor", "Hastane", "Hemşire", "Hasta", "Tedavi"],
+
+    ["Deniz", "Dalga", "Kum", "Sahil", "Gemi"],
+
+    ["Kitap", "Sayfa", "Okumak", "Yazar", "Kütüphane"]
+
+];
+
+
+/* TANIMA TESTLERİ */
+
+/* true = Daha önce gösterildi
+   false = Daha önce gösterilmedi */
+
+const tests = [
+
+    [
+        ["Gezegen", true],
+        ["Ay", true],
+        ["Plüton", false],
+        ["Neptün", false],
+        ["Dünya", true],
+        ["Yıldız", true],
+        ["Mars", false],
+        ["Güneş", true]
+    ],
+
+    [
+        ["Müzik", true],
+        ["Nota", true],
+        ["Dans", false],
+        ["Şarkı", true],
+        ["Melodi", true],
+        ["Ritim", true],
+        ["Sahne", false],
+        ["Enstrüman", false]
+    ],
+
+    [
+        ["Doktor", true],
+        ["Hastane", true],
+        ["İlaç", false],
+        ["Hemşire", true],
+        ["Hasta", true],
+        ["Tedavi", true],
+        ["Eczane", false],
+        ["Ameliyat", false]
+    ],
+
+    [
+        ["Deniz", true],
+        ["Dalga", true],
+        ["Göl", false],
+        ["Kum", true],
+        ["Sahil", true],
+        ["Gemi", true],
+        ["Balık", false],
+        ["Okyanus", false]
+    ],
+
+    [
+        ["Kitap", true],
+        ["Sayfa", true],
+        ["Kalem", false],
+        ["Okumak", true],
+        ["Yazar", true],
+        ["Kütüphane", true],
+        ["Defter", false],
+        ["Roman", false]
+    ]
+
+];
+
+
+/* DEĞİŞKENLER */
+
+let currentList = 0;
+let currentWord = 0;
+
+let currentTest = [];
+let currentTestIndex = 0;
+
+let testStartTime = 0;
+
+let results = [];
+
+let participantCode = "";
+
+
+/* EKRAN DEĞİŞTİRME */
+
+function showScreen(id) {
+
+    document.querySelectorAll(".container > div")
+        .forEach(div => div.classList.add("hidden"));
+
+    document.getElementById(id).classList.remove("hidden");
+
+}
+
+
+/* DENEYİ BAŞLAT */
+
+function startExperiment() {
+
+    participantCode = prompt("Katılımcı numarasını giriniz:");
+
+    if (!participantCode || !participantCode.trim()) {
+        alert("Lütfen bir katılımcı numarası giriniz.");
+        return;
+    }
+
+    participantCode = participantCode.trim();
+
+    currentList = 0;
+    currentWord = 0;
+    results = [];
+
+    showScreen("presentationScreen");
+
+    showNextWord();
+
+}
+
+
+/* KELİMELERİ GÖSTER */
+
+function showNextWord() {
+
+    if (currentWord >= lists[currentList].length) {
+
+        showScreen("waitingScreen");
+
+        setTimeout(startTest, 3000);
+
+        return;
+
+    }
+
+    document.getElementById("listNumber").textContent =
+        "Liste " + (currentList + 1);
+
+    document.getElementById("word").textContent =
+        lists[currentList][currentWord];
+
+    document.getElementById("presentationProgress").textContent =
+        "Kelime " + (currentWord + 1) + " / " +
+        lists[currentList].length;
+
+    currentWord++;
+
+    setTimeout(showNextWord, 5000);
+
+}
+
+
+/* TESTİ BAŞLAT */
+
+function startTest() {
+
+    showScreen("testScreen");
+
+    currentTest = [...tests[currentList]];
+
+    /* Kelimeleri karıştır */
+
+    currentTest.sort(() => Math.random() - 0.5);
+
+    currentTestIndex = 0;
+
+    showTestWord();
+
+}
+
+
+/* TEST KELİMESİNİ GÖSTER */
+
+function showTestWord() {
+
+    if (currentTestIndex >= currentTest.length) {
+
+        finishList();
+
+        return;
+
+    }
+
+    const item = currentTest[currentTestIndex];
+
+    document.querySelector("#testScreen #word").textContent =
+        item[0];
+
+    document.getElementById("progress").textContent =
+        "Kelime " + (currentTestIndex + 1) +
+        " / " + currentTest.length;
+
+    testStartTime = performance.now();
+
+}
+
+
+/* CEVAP AL */
+
+function answer(response) {
+
+    const responseTime =
+        performance.now() - testStartTime;
+
+    const item = currentTest[currentTestIndex];
+
+    const correctAnswer = item[1];
+
+    const isCorrect = response === correctAnswer;
+
+    results.push({
+
+        participant: participantCode,
+
+        list: currentList + 1,
+
+        word: item[0],
+
+        previouslyShown: correctAnswer,
+
+        participantAnswer: response,
+
+        correct: isCorrect,
+
+        responseTimeMs: responseTime.toFixed(2)
+
+    });
+
+    currentTestIndex++;
+
+    showTestWord();
+
+}
+
+
+/* LİSTEYİ BİTİR */
+
+function finishList() {
+
+    currentList++;
+
+    if (currentList >= lists.length) {
+
+        showScreen("endScreen");
+
+    } else {
+
+        showScreen("waitingScreen");
+
+        setTimeout(() => {
+
+            currentWord = 0;
+
+            showScreen("presentationScreen");
+
+            showNextWord();
+
+        }, 3000);
+
+    }
+
+}
+
+
+/* CSV İNDİR */
+
+function downloadResults() {
+
+    let csv =
+        "Katılımcı,Liste,Kelime,DahaOnceGosterildi,KatilimciCevabi,DogruYanlis,TepkiSuresi_ms\n";
+
+    results.forEach(row => {
+
+        csv += [
+
+            row.participant,
+
+            row.list,
+
+            row.word,
+
+            row.previouslyShown ? "Evet" : "Hayır",
+
+            row.participantAnswer ? "Gördüm" : "Görmedim",
+
+            row.correct ? "Doğru" : "Yanlış",
+
+            row.responseTimeMs
+
+        ].map(value =>
+            '"' + String(value).replace(/"/g, '""') + '"'
+        ).join(",") + "\n";
+
+    });
+
+    const blob = new Blob(
+        ["\uFEFF" + csv],
+        {type: "text/csv;charset=utf-8;"}
+    );
+
+    const link = document.createElement("a");
+
+    const url = URL.createObjectURL(blob);
+
+    link.href = url;
+
+    link.download =
+        "DRM_Sonuclari_" + participantCode + ".csv";
+
+    link.click();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+}
+
+</script>
+
+</body>
+</html>
+```
